@@ -9,6 +9,8 @@ set(WARPFRONT_SOURCE_DIR  "${WARP_DIR}/src")
 file(GLOB WARPFRONT_HEADERS "${WARPFRONT_INCLUDE_DIR}/*.h" "${WARPFRONT_INCLUDE_DIR}/*.hpp")
 file(GLOB WARPFRONT_SOURCES "${WARPFRONT_SOURCE_DIR}/*.cpp")
 
+include_directories(${OpenCV_INCLUDE_DIRS})
+
 add_library(warpfront)
 add_executable( warpfront_test ${sources} ${headers})
 target_link_libraries(warpfront ${OpenCV_LIBRARIES})
