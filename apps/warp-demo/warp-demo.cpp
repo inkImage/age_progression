@@ -2,10 +2,12 @@
 #include <opencv2/opencv.hpp>
 #include "warp.hpp"
 
+#include "fold.hpp"
+
 using namespace cv;
 using namespace std;
 
-vector<string> loadList(string fname)
+vector<string> loadSimpleList(string fname)
 {
     vector<string> fileList;
     string dirName = fname.substr(0, fname.find_last_of("\\/"));
@@ -28,13 +30,14 @@ vector<string> loadList(string fname)
     return fileList;
 }
 
+
 int main(int argc, char** argv)
 {
     string listFname = argc > 1 ? argv[1] : string();
-    vector<string> fileList = loadList(listFname);
-    for(size_t i = 0; i <  fileList.size(); i++)
+    Ptr<FoldData> fold = readFold(listFname);
+    for(size_t i = 0; i < fold->size(); i++)
     {
-        string fname = fileList[i];
+        string fname = fold[i];
         Mat image = imread(fname);
         Mat warped = warpToFrontal(image);
 
