@@ -37,7 +37,7 @@ int main(int argc, char** argv)
     Ptr<FoldData> fold = readFold(listFname);
     for(size_t i = 0; i < fold->size(); i++)
     {
-        string fname = fold[i];
+        string fname = fold->at(i).imgFname;
         Mat image = imread(fname);
         Mat warped = warpToFrontal(image);
 
