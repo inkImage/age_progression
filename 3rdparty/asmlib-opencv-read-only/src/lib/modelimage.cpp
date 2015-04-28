@@ -15,7 +15,7 @@ bool ModelImage::readPTS( const char * filename )
     AFReader r(filename);
 
     if ( !r.IsValid() ) {
-        printf("File %s not found!\n");
+        printf("File %s not found!\n", filename);
         throw "";
         return false;
     }

@@ -53,7 +53,7 @@ void ShapeModel::readTrainData(const char *listFileName)
 {
     // Find the directory of the list file
     string sName(listFileName), listDir;
-    int posD;
+    size_t posD;
     posD = sName.find_last_of("/\\");
     if (posD != string::npos)
         listDir = sName.substr(0, posD+1);
@@ -73,7 +73,7 @@ void ShapeModel::readTrainData(const char *listFileName)
     while (!feof(fp)){
         char * nk=fgets(sBuf,300,fp);
         l=strlen(sBuf);
-        if (nk>0 && sBuf[l-1]=='\n')
+        if (nk!=0 && sBuf[l-1]=='\n')
             sBuf[l-1]=0;
         if (nk==0 || sBuf[0]==0)
             continue;
