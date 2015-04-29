@@ -6,7 +6,7 @@ using namespace cv;
 using namespace std;
 using namespace StatModel;
 
-Mat warpToFrontal(Mat img)
+Mat showASMpts(Mat img)
 {
     imshow("img", img);
     waitKey(0);
@@ -29,6 +29,42 @@ Mat warpToFrontal(Mat img)
     }
 
     return toDraw;
+}
+
+
+Mat drawPtsOnImg(Mat img, vector<Point2d> pts)
+{
+    Mat buf = img.clone();
+    for(size_t i = 0; i < pts.size(); i++)
+    {
+        circle(buf, pts[i], 2, Scalar(255, 0, 0));
+    }
+    return buf;
+}
+
+
+Mat drawPtsOnImg(Mat img, vector<Point> pts)
+{
+    Mat buf = img.clone();
+    for(size_t i = 0; i < pts.size(); i++)
+    {
+        circle(buf, pts[i], 2, Scalar(255, 0, 0));
+    }
+    return buf;
+}
+
+
+Rect boundingRect(vector<Point2d> pts)
+{
+    int minx = 10000, miny = 10000, maxx = 0, maxy = 0;
+    for(size_t j = 0; j < pts.size(); j++)
+    {
+        int x = pts[j].x, y = pts[j].y;
+        minx = min(minx, x); miny = min(miny, y);
+        maxx = max(maxx, x); maxy = max(maxy, y);
+    }
+    Rect r(minx, miny, maxx-minx, maxy-miny);
+    return r;
 }
 
 

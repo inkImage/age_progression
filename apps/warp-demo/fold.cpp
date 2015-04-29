@@ -97,8 +97,10 @@ Ptr<FoldData> readFold(string fname)
             else if(age[0] == '(')
             {
                 int comma = age.find_first_of(",");
-                face.ageLow = stoi(age.substr(0, comma));
-                face.ageHigh = stoi(age.substr(comma+2, age.size()-1-(comma+2)));
+                string ageLow  = age.substr(1, comma-1);
+                string ageHigh = age.substr(comma+2, age.size()-1-(comma+2));
+                face.ageLow = stoi(ageLow);
+                face.ageHigh = stoi(ageHigh);
             }
             else
             {
@@ -141,7 +143,8 @@ Ptr<FoldData> readFold(string fname)
                               noExtFname + ".txt";
             int score, yaw;
             face.landmarks = readFidu(ptsFname, score, yaw);
-            cout << score << ' ' << yaw << endl;
+            face.score2 = score;
+            face.yaw2   = yaw;
 
             fold->push_back(face);
         }

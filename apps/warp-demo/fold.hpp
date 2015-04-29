@@ -18,6 +18,8 @@ struct FaceData
     int         tiltAng;
     int         fiducialYawAngle;
     int         fiducialScore;
+    int         score2;
+    int         yaw2;
 
     //calculated data
     std::string imgFname;
