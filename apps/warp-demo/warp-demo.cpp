@@ -7,6 +7,8 @@
 using namespace cv;
 using namespace std;
 
+const bool DRAW_PCA = false;
+
 struct Settings
 {
     vector<string> foldsFnames;
@@ -59,6 +61,10 @@ Settings loadSettings(string fname)
                 file >> fname;
                 settings.outPcaFname = fname;
             }
+            else
+            {
+                file.ignore(400, '\n');
+            }
         }
     }
     else
@@ -68,14 +74,34 @@ Settings loadSettings(string fname)
     return settings;
 }
 
+
+Mat fromColumnToImage(Mat column, int rows)
+{
+    Mat img;
+    vector<Mat> bgr(3);
+    for(int i = 0; i < 3; i++)
+    {
+        Mat col = column(Rect(0, i*column.rows/3, 1, column.rows/3));
+        Mat ucharCol;
+        convertScaleAbs(col, ucharCol);
+        bgr[i] = ucharCol.reshape(1, rows);
+    }
+    merge(bgr, img);
+    return img;
+}
+
+
 int main(int argc, char** argv)
 {
+    cout << "Loading settings..." << endl;
     string settingsFname = argc > 1 ? argv[1] : string();
     Settings settings = loadSettings(settingsFname);
     Ptr<FoldData> data;
     for(size_t i = 0; i < settings.foldsFnames.size(); i++)
     {
-        Ptr<FoldData> fold = readFold(listFname);
+        cout << "Reading folds... ";
+        cout  << i+1 << '/' << settings.foldsFnames.size() << endl;
+        Ptr<FoldData> fold = readFold(settings.foldsFnames[i]);
         if(data.empty())
         {
             data = fold;
@@ -89,62 +115,143 @@ int main(int argc, char** argv)
     size_t numImages = data->size();
     Size picSize(100, 100);
     int numPixels = picSize.width*picSize.height;
-    Mat pcaMat(numPixels, numImages, CV_32F);
 
-    for(size_t i = 0; i < numImages; i++)
-    {
-        string fname = data->at(i).imgFname;
-        Mat image = imread(fname);
-        Mat gray, cropped, floatImg, small, column;
-        cvtColor(image, gray, CV_BGR2GRAY, 1);
-        vector<Point2d> landmarks = data->at(i).landmarks;
-        Rect r = boundingRect(landmarks);
-        cropped = gray(r);
-        resize(cropped, small, picSize);
-        small.convertTo(floatImg, CV_32F);
-        column = floatImg.reshape(1, numPixels);
+    Mat eigenValues;
+    Mat eigenVectors;
+    Mat meanVector;
 
-        column.copyTo(pcaMat(Rect(i, 0, 1, numPixels)));
-
-        cout << "Gathering images... ";
-        cout << i << "/" << numImages << endl;
-    }
-
-    cout << "Computing PCA..." << endl;
-    int numVectors = 12;
-    PCA pca(pcaMat, Mat(), CV_PCA_DATA_AS_COL, numVectors);
-    Mat eigenValues  = pca.eigenvalues;
-    Mat eigenVectors = pca.eigenvectors.t();
-
-    FileStorage fs(settings.outPcaFname, FileStorage::WRITE);
+    FileStorage fs(settings.outPcaFname, FileStorage::READ);
     if(fs.isOpened())
     {
-        fs << "eigenValues"  << eigenValues;
-        fs << "eigenVectors" << eigenVectors;
-        fs << "mean" << mean;
+        fs["eigenValues"] >> eigenValues;
+        fs["eigenVectors"] >> eigenVectors;
+        fs["mean"] >> meanVector;
     }
     else
     {
-        throw std::runtime_error("can't save file: "+settings.outPcaFname);
+        Mat pcaMat(3*numPixels, numImages, CV_32F);
+        for(size_t i = 0; i < numImages; i++)
+        {
+            string fname = data->at(i).imgFname;
+            Mat image = imread(fname);
+
+            Mat cropped, column;
+            vector<Point2d> landmarks = data->at(i).landmarks;
+            Rect r = boundingRect(landmarks);
+            cropped = image(r);
+
+            //imshow("cropped", cropped); waitKey(0);
+
+            vector<Mat> bgr;
+            split(cropped, bgr);
+            for(size_t i = 0; i < bgr.size(); i++)
+            {
+                Mat small, floatImg, col;
+                resize(bgr[i], small, picSize);
+                small.convertTo(floatImg, CV_32F);
+                col = floatImg.reshape(1, numPixels);
+                column.push_back(col);
+            }
+
+            column.copyTo(pcaMat(Rect(i, 0, 1, 3*numPixels)));
+
+            cout << "Gathering images... ";
+            cout << i << "/" << numImages << endl;
+        }
+
+        cout << "Computing PCA..." << endl;
+        int numVectors = 20;
+        PCA pca(pcaMat, Mat(), CV_PCA_DATA_AS_COL, numVectors);
+        eigenValues  = pca.eigenvalues;
+        eigenVectors = pca.eigenvectors.t();
+        meanVector = pca.mean;
+
+        FileStorage fsWrite(settings.outPcaFname, FileStorage::WRITE);
+        if(fsWrite.isOpened())
+        {
+            fsWrite << "eigenValues"  << eigenValues;
+            fsWrite << "eigenVectors" << eigenVectors;
+            fsWrite << "mean" << meanVector;
+        }
+        else
+        {
+            throw std::runtime_error("can't save file: "+settings.outPcaFname);
+        }
     }
 
-    Mat meanToShow, floatMean;
-    floatMean = pca.mean.reshape(1, picSize.height);
-    convertScaleAbs(floatMean, meanToShow);
-    imshow("mean", meanToShow);
-    waitKey(0);
+    PCA pca;
+    pca.eigenvalues = eigenValues;
+    pca.eigenvectors = eigenVectors.t();
+    pca.mean = meanVector;
 
-    //draw svd
-    for(int i = 0; i < eigenValues.rows; i++)
+    //draw pca
+    if(DRAW_PCA)
     {
-        cout << "Drawing u and vt... " << i << " ";
-        cout << eigenValues.at<float>(i, 0) << endl;
-        Mat floatU, imgU;
-        eigenVectors(Rect(i, 0, 1, numPixels)).copyTo(floatU);
-        floatU = floatMean + floatU*255.0;
-        convertScaleAbs(floatU.reshape(1, picSize.height), imgU);
+        Mat meanToShow;
+        meanToShow = fromColumnToImage(pca.mean, picSize.height);
+        imshow("mean", meanToShow);
+        waitKey(0);
 
-        imshow("u", imgU); //imshow("vt", imgV);
+        for(int i = 0; i < 20; i++)
+        {
+            double eig = eigenValues.at<float>(i, 0);
+            cout << "Drawing u and vt... " << i << " " << eig << endl;
+            Mat floatU, imgU;
+            eigenVectors(Rect(i, 0, 1, 3*numPixels)).copyTo(floatU);
+            double minv, maxv;
+            cv::minMaxIdx(floatU, &minv, &maxv);
+            floatU = 128.0 + floatU*(128.0/maxv);
+            imgU = fromColumnToImage(floatU, picSize.height);
+
+            imshow("u"+to_string(i), imgU); //imshow("vt", imgV);
+            waitKey(0);
+        }
+    }
+
+    for(size_t i = 0; i < numImages; i++)
+    {
+        cout << "Projecting images... ";
+        cout << i+1 << "/" << numImages << endl;
+
+        string fname = data->at(i).imgFname;
+        Mat image = imread(fname);
+
+        Mat resized, column;
+        vector<Point2d> landmarks = data->at(i).landmarks;
+        Rect r = boundingRect(landmarks);
+        resize(image(r), resized, picSize);
+
+        imshow("image", resized);
+
+        Mat buf = drawPtsOnImg(image, landmarks);
+        Mat showBuf;
+        resize(buf(r), showBuf, picSize);
+
+        imshow("points", showBuf);
+
+        vector<Mat> bgr;
+        split(resized, bgr);
+        for(size_t i = 0; i < bgr.size(); i++)
+        {
+            Mat floatImg, col;
+            bgr[i].convertTo(floatImg, CV_32F);
+            col = floatImg.reshape(1, numPixels);
+            column.push_back(col);
+        }
+
+        Mat projection = pca.project(column);
+        Mat restored = pca.backProject(projection);
+
+        Mat toShow = fromColumnToImage(restored, picSize.height);
+
+        imshow("projection", toShow);
+
+        cout << "Searching for optical flow..." << endl;
+        Mat flow = findOpticalFlow(resized, toShow);
+        cout << "Warping..." << endl;
+        Mat warped = warpImgWithFlow(resized, flow);
+
+        imshow("warped", warped);
         waitKey(0);
     }
 

@@ -12,4 +12,8 @@ cv::Rect findFace(cv::Mat img);
 cv::Rect runCascade(cv::Mat img, cv::CascadeClassifier cc);
 cv::Rect boundingRect(std::vector<cv::Point2d> pts);
 
+cv::Mat findOpticalFlow(cv::Mat a, cv::Mat b);
+cv::Mat warpImgWithFlow(cv::Mat img, cv::Mat flow);
+
+
 #endif //WARP_HPP
