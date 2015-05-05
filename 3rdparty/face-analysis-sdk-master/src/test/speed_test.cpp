@@ -206,6 +206,10 @@ int main(int argc, char** argv)
   double animate_fps=0;
   char str[2000];
 
+  //fix "not-used" warning
+  total_fps = total_fps;
+  capture_fps = capture_fps;
+
   int output_frame_number = 0;
   int64 output_frame_last_output = 0;
   cv::Mat output_frame_last_frame;

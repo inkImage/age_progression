@@ -110,6 +110,7 @@ Detector::getResponsesForRefShape(double scale)
     bool t = false;
     if(sz.width%2==0){ sz.width++; t = true;}
     if(sz.height%2==0){ sz.height++; t = true;}
+    t = t; //fix "not-used" warning
     //   std::cout << "expanded" << std::endl;
     for(size_t i=0; i<prob_.size(); i++){
       cv::Mat m;

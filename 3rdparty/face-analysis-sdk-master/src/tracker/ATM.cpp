@@ -61,6 +61,7 @@ void ATM::UpdateTemplate(cv::Mat &im,cv::Mat &s,cv::Mat &pose,
       }
     }
     if(vmin > tol)vec__.copyTo(_T[idx][imax]);
+    imin = imin; //fix "not-used" warning
   }return;
 }
 //=============================================================================
@@ -132,6 +133,7 @@ int ATM::Update(cv::Mat &im,cv::Mat &s,
 	if(vmin > v){imin = i; vmin = v;}
       }
     }
+    imin = imin; //fix "not-used" warning
     if(vmin > tol){
       this->CalcJacob(im,s,dxdp,J__,vec__);
       vec__.copyTo(_T[idx][imax]);

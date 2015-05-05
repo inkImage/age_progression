@@ -74,7 +74,9 @@ public:
       throw make_runtime_error("Unable to fork a new process: %s.", strerror(errno));
 
     if (new_pid == 0) { // child process
-      char *argv[arguments.size() + 2];
+      size_t sz = arguments.size() + 2;
+      char **argv = (char**)malloc(sz);
+
       argv[0] = (char *)command.c_str();
       argv[arguments.size() + 1] = 0;
 
@@ -85,6 +87,7 @@ public:
       }
       
       int rv = execvp(command.c_str(), argv);
+      free(argv);
       if (rv == -1) 
 	throw make_runtime_error("Unable to create new process: %s.", strerror(errno));
     } else { // parent process

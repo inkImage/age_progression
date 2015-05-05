@@ -276,19 +276,25 @@ pathname_name(const std::string &pathname)
 std::string
 pathname_directory(const std::string &pathname)
 {
-  char buffer[pathname.size() + 1];
-  memset(buffer, 0, sizeof(buffer));
+  size_t sz = pathname.size()+1;
+  char* buffer = (char*)malloc(sz);
+  memset(buffer, 0, sz);
   std::copy(pathname.begin(), pathname.end(), buffer);
-  return std::string(dirname(buffer));
+  std::string dirStr(dirname(buffer));
+  free(buffer);
+  return dirStr;
 }
 
 std::string
 pathname_sans_directory(const std::string &pathname)
 {
-  char buffer[pathname.size() + 1];
-  memset(buffer, 0, sizeof(buffer));
+  size_t sz = pathname.size()+1;
+  char* buffer = (char*)malloc(sz);
+  memset(buffer, 0, sz);
   std::copy(pathname.begin(), pathname.end(), buffer);
-  return std::string(basename(buffer));
+  std::string baseStr(basename(buffer));
+  free(buffer);
+  return baseStr;
 }
 
 std::string

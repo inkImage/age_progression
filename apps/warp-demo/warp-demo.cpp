@@ -135,15 +135,14 @@ int main(int argc, char** argv)
             string fname = data->at(i).imgFname;
             Mat image = imread(fname);
 
-            Mat cropped, column;
+            Mat aligned, column;
             vector<Point2d> landmarks = data->at(i).landmarks;
-            Rect r = boundingRect(landmarks);
-            cropped = image(r);
+            aligned = alignToLandmarks(image, landmarks);
 
-            //imshow("cropped", cropped); waitKey(0);
+            //imshow("aligned", aligned); waitKey(0);
 
             vector<Mat> bgr;
-            split(cropped, bgr);
+            split(aligned, bgr);
             for(size_t i = 0; i < bgr.size(); i++)
             {
                 Mat small, floatImg, col;
@@ -218,16 +217,10 @@ int main(int argc, char** argv)
 
         Mat resized, column;
         vector<Point2d> landmarks = data->at(i).landmarks;
-        Rect r = boundingRect(landmarks);
-        resize(image(r), resized, picSize);
+        Mat aligned = alignToLandmarks(image, landmarks);
+        resize(aligned, resized, picSize);
 
         imshow("image", resized);
-
-        Mat buf = drawPtsOnImg(image, landmarks);
-        Mat showBuf;
-        resize(buf(r), showBuf, picSize);
-
-        imshow("points", showBuf);
 
         vector<Mat> bgr;
         split(resized, bgr);
