@@ -15,5 +15,7 @@ cv::Rect boundingRect(std::vector<cv::Point2d> pts);
 cv::Mat findOpticalFlow(cv::Mat a, cv::Mat b);
 cv::Mat warpImgWithFlow(cv::Mat img, cv::Mat flow);
 
+std::vector<cv::Point2d> findLandmarksFaceSDK(cv::Mat img);
 
+cv::Mat alignToLandmarks(cv::Mat img, std::vector<cv::Point2d> landmarks);
 #endif //WARP_HPP

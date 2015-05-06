@@ -36,11 +36,11 @@ namespace CI2CVGui
 	
 		Q_PROPERTY(QRectF itemPosition
 				   READ itemPosition
-				   WRITE setItemPosition);
+                   WRITE setItemPosition)
 				
 		Q_PROPERTY(qreal opacity
 				   READ opacity
-				   WRITE setOpacity);
+                   WRITE setOpacity)
 	public:
 		ItemController(QObject *parent = NULL);
 		

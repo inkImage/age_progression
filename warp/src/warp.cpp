@@ -1,10 +1,12 @@
 #include "warp.hpp"
 
 #include "asmmodel.h"
+#include "tracker/FaceTracker.hpp"
 
 using namespace cv;
 using namespace std;
 using namespace StatModel;
+using namespace FACETRACKER;
 
 //range is [0.0 .. 1.0]
 void HSVtoRGB( float& r, float &g, float &b, float h, float s, float v )
@@ -230,5 +232,102 @@ cv::Mat warpImgWithFlow(cv::Mat img, cv::Mat flow)
     Mat newFrame;
     remap(img, newFrame, flowMap, Mat(), INTER_LANCZOS4);
     return newFrame;
+}
+
+
+cv::Mat compute_pose_image(const Pose &pose, int height, int width)
+{
+  cv::Mat_<cv::Vec<uint8_t,3> > rv = cv::Mat_<cv::Vec<uint8_t,3> >::zeros(height,width);
+  cv::Mat_<double> axes = pose_axes(pose);
+  cv::Mat_<double> scaling = cv::Mat_<double>::eye(3,3);
+
+  for (int i = 0; i < axes.cols; i++) {
+    axes(0,i) = -0.5*double(width)*(axes(0,i) - 1);
+    axes(1,i) = -0.5*double(height)*(axes(1,i) - 1);
+  }
+
+  cv::Point centre(width/2, height/2);
+  // pitch
+  cv::line(rv, centre, cv::Point(axes(0,0), axes(1,0)), cv::Scalar(255,0,0));
+  // yaw
+  cv::line(rv, centre, cv::Point(axes(0,1), axes(1,1)), cv::Scalar(0,255,0));
+  // roll
+  cv::line(rv, centre, cv::Point(axes(0,2), axes(1,2)), cv::Scalar(0,0,255));
+
+  return rv;
+}
+
+
+vector<Point2d> findLandmarksFaceSDK(Mat img)
+{
+    string model_pathname = DefaultFaceTrackerModelPathname();
+    string params_pathname = DefaultFaceTrackerParamsPathname();
+
+    Ptr<FaceTracker> ft = LoadFaceTracker();
+    if(ft.empty())
+    {
+        cout << "Failed to load Face SDK but it was expected" <<endl;
+    }
+    else
+    {
+        cout << "It's pretty strange but we've loaded Face SDK" << endl;
+    }
+
+    Ptr<FaceTrackerParams> params = LoadFaceTrackerParams();
+
+    Mat gray;
+    cvtColor(img, gray, CV_BGR2GRAY);
+    int result = ft->NewFrame(gray, params);
+
+    std::vector<cv::Point_<double> > shape;
+    std::vector<cv::Point3_<double> > shape3;
+    Pose pose;
+
+    int tracking_threshold = 5;
+
+    if (result >= tracking_threshold)
+    {
+      shape = ft->getShape();
+      shape3 = ft->get3DShape();
+      pose = ft->getPose();
+    }
+    else
+    {
+        cout << "Something's bad with tracking" << endl;
+    }
+
+    Mat displayedImage = img.clone();
+    for (size_t i = 0; i < shape.size(); i++)
+    {
+        cv::circle(displayedImage, shape[i], 2, Scalar(0, 0, 255), 1, 8, 0);
+    }
+    imshow("image with points", displayedImage);
+
+    int pose_image_height = 100;
+    int pose_image_width = 100;
+    cv::Mat poseImage = compute_pose_image(pose, pose_image_height, pose_image_width);
+    imshow("pose", poseImage);
+    waitKey(0);
+
+    return shape;
+}
+
+
+Mat alignToLandmarks(Mat img, std::vector<Point2d> landmarks)
+{
+    Rect r = boundingRect(landmarks);
+    Mat aligned = img(r);
+
+
+    vector<Point2d> ftLandmarks = findLandmarksFaceSDK(img);
+
+
+
+
+    Mat buf = drawPtsOnImg(img, landmarks);
+    imshow("base landmarks", buf);
+    waitKey(0);
+
+    return aligned;
 }
 

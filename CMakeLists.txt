@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 2.8)
 
 set(ASM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/asmlib-opencv-read-only/src/lib")
 set(FACE_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/face-analysis-sdk-master")
+set(FACE_SDK_SRC_DIR "${FACE_SDK_DIR}/src")
 set(WARP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/warp/include")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")

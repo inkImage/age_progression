@@ -9,9 +9,9 @@ set(WARP_SOURCE_DIR  "${WARP_DIR}/src")
 set(WARP_HEADERS ${WARP_INCLUDE_DIR}/warp.hpp)
 set(WARP_SOURCES ${WARP_SOURCE_DIR}/warp.cpp)
 
-include_directories(${OpenCV_INCLUDE_DIRS} ${WARP_INCLUDE_DIR} ${ASM_SOURCE_DIR})
+include_directories(${OpenCV_INCLUDE_DIRS} ${WARP_INCLUDE_DIR} ${ASM_SOURCE_DIR} ${FACE_SDK_SRC_DIR})
 
 add_library(warp ${WARP_SOURCES} ${WARP_HEADERS} )
 
-target_link_libraries(warp asm ${OpenCV_LIBRARIES})
+target_link_libraries(warp asm clmTracker ${OpenCV_LIBRARIES})
 

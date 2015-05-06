@@ -58,14 +58,14 @@ IF(APPLE)
 ENDIF()
 
 
-ADD_EXECUTABLE(${BundleName} MACOSX_BUNDLE 
-  main.cpp 
-  osx-configuration.mm
-  ${guiFILES} 
-  ${MOC_SRCS}
-  ${EXTRA_SRC}
-  )
-TARGET_LINK_LIBRARIES(${BundleName} ${LIBS} ${QT_LIBRARIES} clmTracker avatarAnim ${EXTRA_LIBS})
+#ADD_EXECUTABLE(${BundleName} MACOSX_BUNDLE 
+#  main.cpp 
+#  osx-configuration.mm
+#  ${guiFILES} 
+#  ${MOC_SRCS}
+#  ${EXTRA_SRC}
+#  )
+#TARGET_LINK_LIBRARIES(${BundleName} ${LIBS} ${QT_LIBRARIES} clmTracker avatarAnim ${EXTRA_LIBS})
 
 
 # IF(APPLE)
