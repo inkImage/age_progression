@@ -13,5 +13,5 @@ include_directories(${OpenCV_INCLUDE_DIRS} ${WARP_INCLUDE_DIR} ${ASM_SOURCE_DIR}
 
 add_library(warp ${WARP_SOURCES} ${WARP_HEADERS} )
 
-target_link_libraries(warp asm clmTracker ${OpenCV_LIBRARIES})
+target_link_libraries(warp asm clmTracker utilities avatarAnim ${OpenCV_LIBRARIES})
 
