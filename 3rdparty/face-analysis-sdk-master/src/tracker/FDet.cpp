@@ -318,7 +318,7 @@ void SInit::Save(const char* fname, bool binary)
 void SInit::Write(ofstream &s, bool binary)
 {
   if(!binary){
-  s << IO::SINIT << " "; _fdet.Write(s); IO::WriteMat(s,_rshape); 
+  s << IO::SINIT << " "; _fdet->Write(s); IO::WriteMat(s,_rshape);
   s << _simil[0] << " " << _simil[1] << " " 
     << _simil[2] << " " << _simil[3] << " ";
   }
@@ -327,7 +327,7 @@ void SInit::Write(ofstream &s, bool binary)
     s.write(reinterpret_cast<char*>(&t), sizeof(t));
     // t = 0; 
     // s.write(reinterpret_cast<char*>(&t), sizeof(t));
-    _fdet.Write(s, binary);
+    _fdet->Write(s, binary);
     IOBinary::WriteMat(s, _rshape);
     s.write(reinterpret_cast<char*>(&_simil), sizeof(_simil));
   }
@@ -339,7 +339,7 @@ void SInit::Read(ifstream &s,bool readType)
   int type = -1;
   if(readType){s >> type; assert(type == IO::SINIT);}
  
-  _fdet.Read(s); IO::ReadMat(s,_rshape); 
+  _fdet->Read(s); IO::ReadMat(s,_rshape);
   s >> _simil[0] >> _simil[1] >> _simil[2] >> _simil[3];
  
   return;
@@ -352,7 +352,7 @@ void SInit::ReadBinary(ifstream &s,bool readType)
     s.read(reinterpret_cast<char*>(&type), sizeof(type));
     assert(type == IOBinary::SINIT);
   }
-  _fdet.ReadBinary(s); IOBinary::ReadMat(s, _rshape);
+  _fdet->ReadBinary(s); IOBinary::ReadMat(s, _rshape);
   s.read(reinterpret_cast<char*>(&_simil), sizeof(_simil));
   
  return;
@@ -361,7 +361,7 @@ void SInit::ReadBinary(ifstream &s,bool readType)
 int SInit::InitShape(cv::Mat &im,cv::Mat &shape, cv::Rect r)
 {
   int i,n = _rshape.rows/2; double a,b,tx,ty;
-  if(r.width<=0) r = _fdet.Detect(im); if((r.width==0)||(r.height==0))return -1;
+  if(r.width<=0) r = _fdet->Detect(im); if((r.width==0)||(r.height==0))return -1;
   if(!((shape.rows == _rshape.rows) && (shape.cols == _rshape.cols) &&
        (shape.type() == CV_64F))){
     shape.create(_rshape.rows,_rshape.cols,CV_64F);

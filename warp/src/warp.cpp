@@ -8,6 +8,28 @@ using namespace std;
 using namespace StatModel;
 using namespace FACETRACKER;
 
+
+class FakeFaceDet : public FACETRACKER::FDet
+{
+public:
+    FakeFaceDet(cv::Rect r) : FDet()
+    {
+        rect = r;
+    }
+    virtual ~FakeFaceDet() { }
+    virtual Rect Detect(Mat im)
+    {
+        Rect res = FDet::Detect(im);
+        if(res.width == 0 || res.height == 0)
+            return rect;
+        else
+            return res;
+    }
+    cv::Rect rect;
+};
+
+
+
 //range is [0.0 .. 1.0]
 void HSVtoRGB( float& r, float &g, float &b, float h, float s, float v )
 {
@@ -258,12 +280,16 @@ cv::Mat compute_pose_image(const Pose &pose, int height, int width)
 }
 
 
-vector<Point2d> findLandmarksFaceSDK(Mat img)
+void findLandmarksFaceSDK(Mat img, vector<Point2d>& shape2d, vector<Point3d>& shape3d,
+                          Pose& pose, Rect rect)
 {
     string model_pathname = DefaultFaceTrackerModelPathname();
     string params_pathname = DefaultFaceTrackerParamsPathname();
 
-    Ptr<FaceTracker> ft = LoadFaceTracker();
+    Ptr<myFaceTracker> ft = dynamic_cast<myFaceTracker*>(LoadFaceTracker());
+
+    //ft->_sinit._fdet = new FakeFaceDet(rect);
+
     if(ft.empty())
     {
         cout << "Failed to load Face SDK but it was expected" <<endl;
@@ -279,52 +305,156 @@ vector<Point2d> findLandmarksFaceSDK(Mat img)
     cvtColor(img, gray, CV_BGR2GRAY);
     int result = ft->NewFrame(gray, params);
 
-    std::vector<cv::Point_<double> > shape;
-    std::vector<cv::Point3_<double> > shape3;
-    Pose pose;
+    //try to stabilize
+    for(int i = 0; i < 2; i++)
+    {
+        result = ft->Track(gray, params);
+    }
 
     int tracking_threshold = 5;
 
     if (result >= tracking_threshold)
     {
-      shape = ft->getShape();
-      shape3 = ft->get3DShape();
-      pose = ft->getPose();
+        shape2d = ft->getShape();
+        shape3d = ft->get3DShape();
+        pose = ft->getPose();
     }
     else
     {
+        shape2d = ft->getShape();
+        shape3d = ft->get3DShape();
+        pose = ft->getPose();
+
         cout << "Something's bad with tracking" << endl;
     }
-
-    Mat displayedImage = img.clone();
-    for (size_t i = 0; i < shape.size(); i++)
-    {
-        cv::circle(displayedImage, shape[i], 2, Scalar(0, 0, 255), 1, 8, 0);
-    }
-    imshow("image with points", displayedImage);
-
-    int pose_image_height = 100;
-    int pose_image_width = 100;
-    cv::Mat poseImage = compute_pose_image(pose, pose_image_height, pose_image_width);
-    imshow("pose", poseImage);
-    waitKey(0);
-
-    return shape;
 }
 
 
 Mat alignToLandmarks(Mat img, std::vector<Point2d> landmarks)
 {
-    Rect r = boundingRect(landmarks);
-    Mat aligned = img(r);
+    Mat buf;
+    Rect boundR = boundingRect(landmarks);
+    //set boundR.width == .height
+    //int centerx = boundR.x + boundR.width/2;
+    //boundR.x = centerx-boundR.height/2;
+    //boundR.width = boundR.height;
+    Mat aligned = img(boundR);
+
+    std::vector<cv::Point2d> ftShape2d;
+    std::vector<cv::Point3d> ftShape3d;
+    Pose ftPose;
+    findLandmarksFaceSDK(img, ftShape2d, ftShape3d, ftPose, boundR);
+
+    int pose_image_height = 100;
+    int pose_image_width = 100;
+    cv::Mat poseImage = compute_pose_image(ftPose, pose_image_height, pose_image_width);
+    imshow("ft pose", poseImage);
+    //waitKey(0);
+
+    Vertices model3d;
+    cout << "Loading 3D model..." << endl;
+    if(!loadObj("data/model3dstm.obj", model3d))
+    {
+        cout << "Something went wrong: failed to load 3D model" << endl;
+    }
+
+    //filter background points
+    {
+        Vertices filteredModel;
+        for(size_t i = 0; i < model3d.size(); i++)
+        {
+            Point3d p = model3d[i];
+            if(p.y < 0)
+            {
+                filteredModel.push_back(p);
+            }
+        }
+        model3d = filteredModel;
+    }
+
+    Vertices ftPoints3d;
+    if(!loadObj("data/face_sdk_3d_pts.obj", ftPoints3d))
+    {
+        cout << "Something went wrong: failed to load FT 3D points" << endl;
+    }
+
+    Vertices basePoints3d;
+    if(!loadObj("data/zhu_3d_pts.obj", basePoints3d))
+    {
+        cout << "Something went wrong: failed to load base 3D points" << endl;
+    }
+
+    double modelFx = 492.307710365432; //fx==fy
+    double modelCx = 160; //cx==cy
+
+    Matx<double, 3, 3> camMat(modelFx,       0, modelCx,
+                                    0, modelFx, modelCx,
+                                    0,       0,       1);
+    Mat distCoeffs, ftRvec, ftTvec;
+
+    if(ftShape2d.size() > 0)
+    {
+        solvePnP(ftPoints3d, ftShape2d, camMat, distCoeffs, ftRvec, ftTvec);
+        vector<Point2d> modelProjected;
+        cv::Mat_<double> ftDetRotm;
+
+        Rodrigues(ftRvec, ftDetRotm);
+        Pose ftDetPose;
+        Rot2Euler(ftDetRotm, ftDetPose.pitch, ftDetPose.yaw, ftDetPose.roll);
+        cout << "pitch/yaw/roll: ";
+        cout << ftDetPose.pitch << ' ' << ftDetPose.yaw << ' ' << ftDetPose.roll << endl;
+
+        projectPoints(model3d, ftRvec, ftTvec, camMat, distCoeffs, modelProjected);
+
+        //filter points out of frame
+        Vertices filtered;
+        vector<Point2d> filteredProjected;
+        for(size_t i = 0; i < modelProjected.size(); i++)
+        {
+            Point2d p2 = modelProjected[i];
+            if(p2.x >= 0 && p2.y >= 0 && p2.x < img.cols && p2.y < img.rows)
+            {
+                filtered.push_back(model3d[i]);
+                filteredProjected.push_back(p2);
+            }
+        }\
+        model3d = filtered;
+        modelProjected = filteredProjected;
+
+        Mat occlBuf(img.size(), CV_8U, Scalar(0));
+        const int toAdd = 30;
+        for(size_t i = 0; i < modelProjected.size(); i++)
+        {
+            Point2d p2 = modelProjected[i];
+            uchar& val = occlBuf.at<uchar>(p2);
+            val = saturate_cast<uchar>(val+toAdd);
+        }
+        //GaussianBlur(occlBuf, occlBuf, Size(15, 15), 9);
+        imshow("ft projected", occlBuf);
+    }
+
+    //TODO:choose one of 2 poses
+
+    //TODO:frontalization:
+    //TODO:transform model to found pose
+    //???TODO: warp model to 3d shape
+    //TODO: render pose over the image
+    //TODO: grab occlusions image & blur it
+    //TODO: somehow reproject
+    //TODO: somehow restore from other side
 
 
-    vector<Point2d> ftLandmarks = findLandmarksFaceSDK(img);
 
+    //TODO:
 
+    Mat ftBuf = img.clone();
+    for (size_t i = 0; i < ftShape2d.size(); i++)
+    {
+        cv::circle(ftBuf, ftShape2d[i], 2, Scalar(0, 0, 255), 1, 8, 0);
+    }
+    imshow("ft landmarks", ftBuf);
 
-
-    Mat buf = drawPtsOnImg(img, landmarks);
+    buf = drawPtsOnImg(img, landmarks);
     imshow("base landmarks", buf);
     waitKey(0);
 

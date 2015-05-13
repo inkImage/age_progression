@@ -488,7 +488,8 @@ void PDM3D::CalcShape2D(cv::Mat &s,cv::Mat &plocal,cv::Mat &pglobl)
 		      R_.db(0,2)*S_.db(i+n*2,0) )+x;
     s.db(i+n,0) = a*( R_.db(1,0)*S_.db(i    ,0) + R_.db(1,1)*S_.db(i+n  ,0) +
 		      R_.db(1,2)*S_.db(i+n*2,0) )+y;
-  }return;
+  }
+  return;
 }
 //===========================================================================
 void PDM3D::CalcShape3D(cv::Mat &s,cv::Mat &plocal)

@@ -3,11 +3,13 @@
 #include "warp.hpp"
 
 #include "fold.hpp"
+#include "util.hpp"
 
 using namespace cv;
 using namespace std;
 
 const bool DRAW_PCA = false;
+
 
 struct Settings
 {
@@ -15,28 +17,6 @@ struct Settings
     string outPcaFname;
 };
 
-vector<string> loadSimpleList(string fname)
-{
-    vector<string> fileList;
-    string dirName = fname.substr(0, fname.find_last_of("\\/"));
-    ifstream file(fname.c_str());
-    if(file.is_open())
-    {
-        string s;
-        do
-        {
-            s.clear();
-            file >> s;
-            fileList.push_back(dirName +'/' + s);
-        }
-        while(!s.empty());
-    }
-    else
-    {
-        throw std::runtime_error("no such file: "+fname);
-    }
-    return fileList;
-}
 
 Settings loadSettings(string fname)
 {

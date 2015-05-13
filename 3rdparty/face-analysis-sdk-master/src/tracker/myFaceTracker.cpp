@@ -440,6 +440,7 @@ myFaceTracker::NewFrame(cv::Mat &im,
   }
   if(gen){
     _sinit.InitShape(gray_,_shape,R);
+
     _clm._pdm.CalcParams(_shape,_clm._plocal,_clm._pglobl);     
     if(p->init_type == 0)
       _clm.Fit(gray_,p->init_wSize,p->itol,p->clamp,p->ftol);

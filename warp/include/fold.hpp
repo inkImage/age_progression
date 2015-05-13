@@ -4,6 +4,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include "warp.hpp"
+#include "util.hpp"
 
 struct FaceData
 {

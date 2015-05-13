@@ -43,14 +43,14 @@ namespace FACETRACKER
 	 const int    min_size = 100){
       this->Init(cascFile,img_scale,scale_factor,min_neighbours,min_size);
     }
-    ~FDet();
+    virtual ~FDet();
     FDet& operator=(FDet const&rhs);
     void Init(const char* fname,
 	      const double img_scale = 1.3,
 	      const double scale_factor = 1.1,
 	      const int    min_neighbours = 2,
 	      const int    min_size = 30);
-    cv::Rect Detect(cv::Mat im);
+    virtual cv::Rect Detect(cv::Mat im);
     void Load(const char* fname, bool binary = false);
     void Save(const char* fname, bool binary = false);
     void Write(std::ofstream &s, bool binary = false
@@ -65,10 +65,11 @@ namespace FACETRACKER
   /** Shape initializer */
   class SInit{
   public:
-    FDet       _fdet;
+    cv::Ptr<FDet>  _fdet;
     cv::Mat    _rshape;
     cv::Scalar _simil;
-    SInit(){;}
+    SInit(){_fdet = new FDet();}
+    ~SInit(){_fdet.release();}
     SInit(const char* fname){this->Load(fname);}
     void Load(const char* fname, bool binary = false);
     void Save(const char* fname, bool binary = false);
@@ -76,7 +77,7 @@ namespace FACETRACKER
     void Read(std::ifstream &s,bool readType = true);
     void ReadBinary(std::ifstream &s,bool readType = true);
     int InitShape(cv::Mat &im,cv::Mat &shape, cv::Rect r = cv::Rect(0,0,0,0));
-    cv::Rect Detect(cv::Mat &im){return _fdet.Detect(im);}
+    cv::Rect Detect(cv::Mat &im){return _fdet->Detect(im);}
     cv::Rect ReDetect(cv::Mat &im);
     cv::Rect Update(cv::Mat &im,cv::Mat &s,bool rsize);
   protected:
