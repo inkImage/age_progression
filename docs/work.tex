@@ -1,0 +1,114 @@
+\documentclass[a4paper,14pt]{extarticle}
+
+\input{includes}
+
+\geometry{left=35mm}
+\geometry{right=20mm}
+\geometry{top=20mm}
+\geometry{bottom=20mm}
+
+\titleformat*{\section}{\bfseries\filcenter}
+\titleformat*{\subsection}{\bfseries\filcenter}
+\titleformat*{\subsubsection}{\bfseries\filcenter}
+\titleformat*{\paragraph}{\bfseries}
+\titleformat*{\subparagraph}{\bfseries}
+
+%\setcounter{secnumdepth}{0}
+
+\usepackage{tocloft}
+%\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+
+\setlength{\parskip}{0pt}
+
+\newcommand{\anonsection}[1]{\section*{#1}\addcontentsline{toc}{section}{#1}}
+
+% Prevent line break in inline math
+%\binoppenalty=\maxdimen
+%\relpenalty=\maxdimen
+
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+  \textbf{\small
+    Правительство Российской Федерации
+  }
+  \vspace{1.0em}
+  
+  \textbf{\small
+    \mbox{Федеральное государственное автономное образовательное учреждение}\\
+	высшего профессионального образования\\
+    <<Национальный исследовательский университет \\
+    <<Высшая школа экономики>>}
+   \vspace{1.0em} 
+    
+    \textbf{\small
+    \mbox{Факультет информатики, математики и компьютерных наук}\\
+    Кафедра \underline{прикладной математики и информатики}
+  }
+\end{center}
+
+\vspace{1.0em}
+
+\begin{center}
+  Василихин Ростислав Викторович
+\end{center}
+
+\begin{center}
+  \textbf{Исследование методов определения и изменения возраста человека по фотографии}
+\end{center}
+
+\begin{center}
+  Выпускная квалификационная работа по направлению\\
+  \underline{Прикладная математика и информатика}\\
+  магистранта группы %№
+  \underline{13 МАГ ПМИ}
+   (магистерская программа <<Прикладная математика и информатика>>)
+\end{center}
+
+\vspace{2.0em}
+
+\begin{minipage}{0.5\textwidth}
+  \begin{flushleft}
+    Рецензент\\
+    д.ф.-м.н, доцент кафедры ПМИ\\
+    \underline{Н.Ю.~Золотых}
+  \end{flushleft}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+  \begin{flushright}
+    Научный руководитель\\
+    преподаватель\\
+    \underline{И.Д.~Лысенков}
+  \end{flushright}
+\end{minipage}
+
+\vspace{\fill}
+\begin{center}
+Нижний Новгород, 2015
+\end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+\phantomsection
+%\addcontentsline{toc}{section}{\contentsname}
+
+\tableofcontents
+
+\input{intro}
+
+\input{age_detection}
+
+\input{age_prediction}
+
+\input{pipeline}
+
+\input{conclusion}
+
+\input{biblio}
+
+
+\end{document}
