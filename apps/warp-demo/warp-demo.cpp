@@ -8,7 +8,7 @@
 using namespace cv;
 using namespace std;
 
-const bool DRAW_PCA = false;
+const bool DRAW_PCA = true;
 
 
 struct Settings
@@ -92,6 +92,23 @@ int main(int argc, char** argv)
         }
     }
 
+    const bool exportTxt = false;
+    if(exportTxt)
+    {
+        ofstream tempFile("/tmp/flist.txt");
+        if(tempFile.is_open())
+        {
+            for(size_t i = 0; i < data->size(); i++)
+            {
+                tempFile << data->at(i).imgFname << " ";
+                tempFile << data->at(i).ageLow << " ";
+                tempFile << data->at(i).ageHigh << " ";
+                tempFile << (data->at(i).gender ? "f" : "m") << endl;
+            }
+        }
+        tempFile.close();
+    }
+
     size_t numImages = data->size();
     Size picSize(100, 100);
     int numPixels = picSize.width*picSize.height;
@@ -113,11 +130,18 @@ int main(int argc, char** argv)
         for(size_t i = 0; i < numImages; i++)
         {
             string fname = data->at(i).imgFname;
-            Mat image = imread(fname);
 
+            //frontalized
+            replace(fname, "AdienceBenchmarkOfUnfilteredFacesForGenderAndAgeClassification",
+                    "frontalized_Adience3D.0.1.1");
+
+            Mat image = imread(fname);
             Mat aligned, column;
             vector<Point2d> landmarks = data->at(i).landmarks;
-            aligned = alignToLandmarks(image, landmarks);
+
+            //aligned = alignToLandmarks(image, landmarks);
+            Rect boundR(14, 14, 114, 114);
+            aligned = image(boundR);
 
             //imshow("aligned", aligned); waitKey(0);
 
@@ -187,20 +211,32 @@ int main(int argc, char** argv)
         }
     }
 
+    Mat meanImg(picSize, CV_32FC3, Scalar::all(0));
+
     for(size_t i = 0; i < numImages; i++)
     {
         cout << "Projecting images... ";
         cout << i+1 << "/" << numImages << endl;
 
         string fname = data->at(i).imgFname;
+
+        //frontalized
+        //replace(fname, "AdienceBenchmarkOfUnfilteredFacesForGenderAndAgeClassification",
+        //        "frontalized_Adience3D.0.1.1");
+
         Mat image = imread(fname);
 
         Mat resized, column;
         vector<Point2d> landmarks = data->at(i).landmarks;
+
         Mat aligned = alignToLandmarks(image, landmarks);
+        //Rect boundR = boundingRect(landmarks);
+//        Rect boundR(14, 14, 114, 114);
+//        Mat aligned = image(boundR);
+
         resize(aligned, resized, picSize);
 
-        imshow("image", resized);
+        //imshow("image", resized);
 
         vector<Mat> bgr;
         split(resized, bgr);
@@ -217,16 +253,26 @@ int main(int argc, char** argv)
 
         Mat toShow = fromColumnToImage(restored, picSize.height);
 
-        imshow("projection", toShow);
+        //imshow("projection", toShow);
 
         cout << "Searching for optical flow..." << endl;
         Mat flow = findOpticalFlow(resized, toShow);
         cout << "Warping..." << endl;
         Mat warped = warpImgWithFlow(resized, flow);
 
-        imshow("warped", warped);
-        waitKey(0);
+        Mat converted;
+        warped.convertTo(converted, CV_32FC3);
+        meanImg += converted/numImages;
+
+        //imshow("warped", warped);
+        //waitKey(0);
     }
+
+    Mat meanImgConverted;
+    meanImg.convertTo(meanImgConverted, CV_8UC3);
+
+    imshow("meanImg", meanImgConverted);
+    waitKey(0);
 
     return 0;
 }

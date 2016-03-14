@@ -6,6 +6,7 @@ set(ASM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/asmlib-opencv-read-only
 set(FACE_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/face-analysis-sdk-master")
 set(FACE_SDK_SRC_DIR "${FACE_SDK_DIR}/src")
 set(WARP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/warp/include")
+set(IMGWARP_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/imgwarp/src/")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:wchar_t-")
@@ -17,6 +18,7 @@ endif()
 
 add_subdirectory(${ASM_SOURCE_DIR})
 add_subdirectory(${FACE_SDK_DIR})
+add_subdirectory(${IMGWARP_SRC_DIR})
 add_subdirectory(warp)
 add_subdirectory(apps)
 
