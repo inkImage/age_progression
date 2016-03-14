@@ -9,6 +9,17 @@
 using namespace std;
 using namespace cv;
 
+bool replace(std::string& str, const std::string& from, const std::string& to)
+{
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+
+
+
 std::vector<std::string> &split(const std::string &s,
                                 char delim,
                                 std::vector<std::string> &elems)

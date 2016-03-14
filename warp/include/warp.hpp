@@ -27,5 +27,7 @@ cv::Mat alignToLandmarks(cv::Mat img, std::vector<cv::Point2d> landmarks);
 
 bool loadObj(const std::string fname, Vertices& model);
 
+cv::Mat warpByPoints(cv::Mat input, std::vector<cv::Point2d> from, std::vector<cv::Point2d> to);
+
 
 #endif //WARP_HPP

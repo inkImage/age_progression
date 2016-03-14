@@ -1,5 +1,11 @@
 #include "warp.hpp"
 
+#include "imgwarp_piecewiseaffine.h"
+#include "imgwarp_mls_rigid.h"
+#include "imgwarp_mls_similarity.h"
+
+#include "calib.h"
+
 #include "asmmodel.h"
 #include "tracker/FaceTracker.hpp"
 
@@ -28,6 +34,39 @@ public:
     cv::Rect rect;
 };
 
+
+Matx33d EulerToRotM(double ex, double ey, double ez, bool isXYZ)
+{
+    const double sinX = sin(ex);
+    const double cosX = cos(ex);
+
+    const double sinY = sin(ey);
+    const double cosY = cos(ey);
+
+    const double sinZ = sin(ez);
+    const double cosZ = cos(ez);
+
+    //right coord. sys.
+    Matx33d rx = Matx33d::eye();
+    rx(1, 1) =  cosX;
+    rx(1, 2) = -sinX;
+    rx(2, 1) =  sinX;
+    rx(2, 2) =  cosX;
+
+    Matx33d ry = Matx33d::eye();
+    ry(0, 0) =  cosY;
+    ry(0, 2) =  sinY;
+    ry(2, 0) = -sinY;
+    ry(2, 2) =  cosY;
+
+    Matx33d rz = Matx33d::eye();
+    rz(0, 0) =  cosZ;
+    rz(0, 1) = -sinZ;
+    rz(1, 0) =  sinZ;
+    rz(1, 1) =  cosZ;
+
+    return isXYZ ? rx*ry*rz : rz*ry*rx;
+}
 
 
 //range is [0.0 .. 1.0]
@@ -193,8 +232,8 @@ cv::Mat findOpticalFlow(Mat a, Mat b)
 {
     Mat flowAb, flowBa;
     //use SimpleFlow method
-    //calcOpticalFlowSF(a, b, flowAb,
-    //                  3, 2, 4, 4.1, 25.5, 18, 55.0, 25.5, 0.35, 18, 55.0, 25.5, 10);
+//    calcOpticalFlowSF(a, b, flowAb,
+//                      3, 2, 4, 4.1, 25.5, 18, 55.0, 25.5, 0.35, 18, 55.0, 25.5, 10);
     Mat aGray, bGray;
     cvtColor(a, aGray, CV_BGR2GRAY);
     cvtColor(b, bGray, CV_BGR2GRAY);
@@ -228,7 +267,7 @@ cv::Mat findOpticalFlow(Mat a, Mat b)
     }
 
     imshow("viz flow", flowViz);
-    waitKey(0);
+    //waitKey(0);
 
 
     //and backwards
@@ -330,6 +369,51 @@ void findLandmarksFaceSDK(Mat img, vector<Point2d>& shape2d, vector<Point3d>& sh
 }
 
 
+Mat warpByPoints(Mat input, vector<Point2d> from, vector<Point2d> to)
+{
+    cv::Ptr<ImgWarp_MLS> imgTrans;
+    const int method = 1;
+    const double alphaV = 1.0;
+    const double gridV = 20;
+    if (method == 0)
+    {
+        imgTrans = new ImgWarp_MLS_Similarity();
+        imgTrans->alpha = alphaV;
+        imgTrans->gridSize = gridV;
+    }
+    else if (method == 1)
+    {
+        imgTrans = new ImgWarp_MLS_Rigid();
+        imgTrans->alpha = alphaV;
+        imgTrans->gridSize = gridV;
+    }
+    else if (method == 2)
+    {
+        imgTrans = new ImgWarp_PieceWiseAffine();
+        imgTrans->alpha = alphaV;
+        imgTrans->gridSize = gridV;
+        imgTrans.ptr<ImgWarp_PieceWiseAffine>()->backGroundFillAlg =
+                ImgWarp_PieceWiseAffine::BGMLS;
+    }
+    else
+    {
+
+    }
+
+    vector<Point> fromPts, toPts;
+    for(size_t i = 0; i < from.size(); i++)
+    {
+        fromPts.push_back(from[i]);
+        toPts.push_back(to[i]);
+    }
+
+    Mat curImg = imgTrans->setAllAndGenerate(input, fromPts, toPts,
+                                             input.cols, input.rows, 1);
+
+    return curImg;
+}
+
+
 Mat alignToLandmarks(Mat img, std::vector<Point2d> landmarks)
 {
     Mat buf;
@@ -340,25 +424,27 @@ Mat alignToLandmarks(Mat img, std::vector<Point2d> landmarks)
     //boundR.width = boundR.height;
     Mat aligned = img(boundR);
 
-    std::vector<cv::Point2d> ftShape2d;
-    std::vector<cv::Point3d> ftShape3d;
-    Pose ftPose;
-    findLandmarksFaceSDK(img, ftShape2d, ftShape3d, ftPose, boundR);
+    //std::vector<cv::Point2d> ftShape2d;
+    //std::vector<cv::Point3d> ftShape3d;
+    //Pose ftPose;
+    //findLandmarksFaceSDK(img, ftShape2d, ftShape3d, ftPose, boundR);
 
-    int pose_image_height = 100;
-    int pose_image_width = 100;
-    cv::Mat poseImage = compute_pose_image(ftPose, pose_image_height, pose_image_width);
-    imshow("ft pose", poseImage);
+    //int pose_image_height = 100;
+    //int pose_image_width = 100;
+    //cv::Mat poseImage = compute_pose_image(ftPose, pose_image_height, pose_image_width);
+    //imshow("ft pose", poseImage);
     //waitKey(0);
 
-    Vertices model3d;
+    static Vertices model3d;
     cout << "Loading 3D model..." << endl;
-    if(!loadObj("data/model3dstm.obj", model3d))
+    if(model3d.empty() && !loadObj("data/model3dinterp.obj", model3d))
     {
         cout << "Something went wrong: failed to load 3D model" << endl;
     }
 
     //filter background points
+    const bool enableFiltering = true;
+    if(enableFiltering)
     {
         Vertices filteredModel;
         for(size_t i = 0; i < model3d.size(); i++)
@@ -372,68 +458,131 @@ Mat alignToLandmarks(Mat img, std::vector<Point2d> landmarks)
         model3d = filteredModel;
     }
 
-    Vertices ftPoints3d;
-    if(!loadObj("data/face_sdk_3d_pts.obj", ftPoints3d))
+    static Vertices ftPoints3d;
+    if(ftPoints3d.empty() && !loadObj("data/face_sdk_3d_pts.obj", ftPoints3d))
     {
         cout << "Something went wrong: failed to load FT 3D points" << endl;
     }
 
-    Vertices basePoints3d;
-    if(!loadObj("data/zhu_3d_pts.obj", basePoints3d))
+    static Vertices basePoints3d;
+    if(basePoints3d.empty() && !loadObj("data/zhu_3d_pts.obj", basePoints3d))
     {
         cout << "Something went wrong: failed to load base 3D points" << endl;
     }
 
     double modelFx = 492.307710365432; //fx==fy
-    double modelCx = 160; //cx==cy
+    //double modelCx = 160; //cx==cy
 
-    Matx<double, 3, 3> camMat(modelFx,       0, modelCx,
-                                    0, modelFx, modelCx,
+    double hereCx = img.cols/2;
+    double hereCy = img.rows/2;
+
+    Matx<double, 3, 3> camMat(modelFx,       0,  hereCx,
+                                    0, modelFx,  hereCy,
                                     0,       0,       1);
-    Mat distCoeffs, ftRvec, ftTvec;
+//    Matx<double, 3, 3> camMat(modelFx,       0,  modelCx,
+//                                    0, modelFx,  modelCx,
+//                                    0,       0,        1);
 
-    if(ftShape2d.size() > 0)
+    Mat distCoeffs, baseRvec, baseTvec(3, 1, CV_64F, Scalar(0));
+
+    if(landmarks.size() > 0)
     {
-        solvePnP(ftPoints3d, ftShape2d, camMat, distCoeffs, ftRvec, ftTvec);
-        vector<Point2d> modelProjected;
-        cv::Mat_<double> ftDetRotm;
+        cv::Mat_<double> baseDetRotm(3, 3);
+        //solvePnP(basePoints3d, landmarks, camMat, distCoeffs, baseRvec, baseTvec,
+        //         false, ITERATIVE);
+        startCalibration(img.size(), landmarks, basePoints3d, Mat(camMat), baseDetRotm, baseTvec,
+                         true, 0);
+        Mat enfaceRvec = Mat(Matx<double, 3, 1>(CV_PI/2, 0, 0));
+        Mat enfaceTvec = Mat(Matx<double, 3, 1>(0, 0, baseTvec.at<double>(2)));
 
-        Rodrigues(ftRvec, ftDetRotm);
-        Pose ftDetPose;
-        Rot2Euler(ftDetRotm, ftDetPose.pitch, ftDetPose.yaw, ftDetPose.roll);
-        cout << "pitch/yaw/roll: ";
-        cout << ftDetPose.pitch << ' ' << ftDetPose.yaw << ' ' << ftDetPose.roll << endl;
-
-        projectPoints(model3d, ftRvec, ftTvec, camMat, distCoeffs, modelProjected);
-
-        //filter points out of frame
-        Vertices filtered;
-        vector<Point2d> filteredProjected;
-        for(size_t i = 0; i < modelProjected.size(); i++)
+        const bool useFrontalization = false;
+        if(useFrontalization)
         {
-            Point2d p2 = modelProjected[i];
-            if(p2.x >= 0 && p2.y >= 0 && p2.x < img.cols && p2.y < img.rows)
+            vector<Point2d> modelProjected, modelEnface;
+
+            if(!baseRvec.empty())
             {
-                filtered.push_back(model3d[i]);
-                filteredProjected.push_back(p2);
+                Rodrigues(baseRvec, baseDetRotm);
             }
-        }\
-        model3d = filtered;
-        modelProjected = filteredProjected;
+            else
+            {
+                Rodrigues(baseDetRotm, baseRvec);
+            }
+            Pose baseDetPose;
+            Rot2Euler(baseDetRotm, baseDetPose.pitch, baseDetPose.yaw, baseDetPose.roll);
 
-        Mat occlBuf(img.size(), CV_8U, Scalar(0));
-        const int toAdd = 30;
-        for(size_t i = 0; i < modelProjected.size(); i++)
-        {
-            Point2d p2 = modelProjected[i];
-            uchar& val = occlBuf.at<uchar>(p2);
-            val = saturate_cast<uchar>(val+toAdd);
+            //cout << baseDetRotm << endl << baseTvec << endl << camMat << endl;
+            Mat rtmat(3, 4, CV_64F);
+            baseDetRotm.copyTo(rtmat(Range::all(), Range(0, 3)));
+            baseTvec.copyTo(rtmat(Range::all(), Range(3, 4)));
+            //cout << (Mat(camMat) * rtmat) << endl;
+
+            //cout << "pitch/yaw/roll: ";
+            //cout << baseDetPose.pitch << ' ' << baseDetPose.yaw << ' ' << baseDetPose.roll << endl;
+
+            projectPoints(model3d, baseRvec, baseTvec, camMat, distCoeffs, modelProjected);
+
+            //filter points out of frame
+            Vertices filtered;
+            vector<Point2d> filteredProjected;
+            for(size_t i = 0; i < modelProjected.size(); i++)
+            {
+                Point2d p2 = modelProjected[i];
+                if(p2.x >= 0 && p2.y >= 0 && p2.x < img.cols && p2.y < img.rows)
+                {
+                    filtered.push_back(model3d[i]);
+                    filteredProjected.push_back(p2);
+                }
+            }\
+            model3d = filtered;
+            modelProjected = filteredProjected;
+
+            Mat occlBuf(img.size(), CV_8U, Scalar(0));
+            const int toAdd = 30;
+            for(size_t i = 0; i < modelProjected.size(); i++)
+            {
+                Point2d p2 = modelProjected[i];
+                uchar& val = occlBuf.at<uchar>(p2);
+                val = saturate_cast<uchar>(val+toAdd);
+            }
+            //GaussianBlur(occlBuf, occlBuf, Size(15, 15), 9);
+            //imshow("ft projected", occlBuf);
+
+            projectPoints(model3d, enfaceRvec, enfaceTvec, camMat, distCoeffs, modelEnface);
+
+            Rect enfaceBounds = boundingRect(modelEnface) & Rect(0, 0, img.cols, img.rows);
+            Mat reprojected(img.size(), CV_8UC3, Scalar(0, 0, 0));
+            for (size_t i = 0; i < modelEnface.size(); i++)
+            {
+                Point toP(modelEnface[i].x, modelEnface[i].y);
+                Point2f fromP(modelProjected[i].x, modelProjected[i].y);
+                if(toP.x >=0 && toP.y >= 0 && toP.x < img.cols && toP.y < img.rows &&
+                        fromP.x >=0 && fromP.y >= 0 && fromP.x < img.cols && fromP.y < img.rows)
+                {
+                    reprojected.at<Vec3b>(toP) = img.at<Vec3b>(fromP);
+                }
+            }
+
+            reprojected = reprojected(enfaceBounds);
+            Mat kernel(3, 3, CV_8U, Scalar(255));
+            dilate(reprojected, reprojected, kernel);
+
+            //imshow("reprojected", reprojected);
+            aligned = reprojected;
         }
-        //GaussianBlur(occlBuf, occlBuf, Size(15, 15), 9);
-        imshow("ft projected", occlBuf);
-    }
+        else
+        {
+            vector<Point2d> baseEnface;
+            projectPoints(basePoints3d, enfaceRvec, enfaceTvec, camMat, distCoeffs, baseEnface);
 
-    //TODO:choose one of 2 poses
+            Rect baseBounded = boundingRect(baseEnface) & Rect(0, 0, img.cols, img.rows);
+            Mat warped = warpByPoints(img, landmarks, baseEnface);
+
+            Mat warpedBuf = warped(baseBounded);//drawPtsOnImg(warped, baseEnface);
+            //imshow("warped landmarks", warpedBuf);
+            aligned = warped(baseBounded);
+        }
+    }
 
     //TODO:frontalization:
     //TODO:transform model to found pose
@@ -443,20 +592,18 @@ Mat alignToLandmarks(Mat img, std::vector<Point2d> landmarks)
     //TODO: somehow reproject
     //TODO: somehow restore from other side
 
-
-
     //TODO:
 
-    Mat ftBuf = img.clone();
-    for (size_t i = 0; i < ftShape2d.size(); i++)
-    {
-        cv::circle(ftBuf, ftShape2d[i], 2, Scalar(0, 0, 255), 1, 8, 0);
-    }
-    imshow("ft landmarks", ftBuf);
+    //Mat ftBuf = img.clone();
+    //for (size_t i = 0; i < ftShape2d.size(); i++)
+    //{
+    //    cv::circle(ftBuf, ftShape2d[i], 2, Scalar(0, 0, 255), 1, 8, 0);
+    //}
+    //imshow("ft landmarks", ftBuf);
 
     buf = drawPtsOnImg(img, landmarks);
-    imshow("base landmarks", buf);
-    waitKey(0);
+    //imshow("base landmarks", buf);
+    //waitKey(0);
 
     return aligned;
 }
